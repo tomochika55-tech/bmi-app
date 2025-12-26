@@ -3,7 +3,7 @@ import pandas as pd
 import datetime
 import os
 
-# ページ設定：サイドバーをデフォルトで開く
+# ページ設定
 st.set_page_config(
     page_title="高機能BMIアプリ", 
     layout="wide", 
@@ -14,7 +14,6 @@ st.set_page_config(
 CSV_FILE = "bmi_log.csv"
 
 # --- 関数群 ---
-
 def get_target_bmi_range(age):
     """年齢別の目標BMI範囲を返す"""
     if age < 18:
@@ -31,7 +30,6 @@ def load_data():
     if os.path.exists(CSV_FILE):
         return pd.read_csv(CSV_FILE)
     else:
-        # ファイルがない場合は空のDataFrameを作成
         return pd.DataFrame(columns=["日付", "体重", "BMI"])
 
 def save_data(weight, bmi):
@@ -45,7 +43,6 @@ def save_data(weight, bmi):
     
     if os.path.exists(CSV_FILE):
         df = pd.read_csv(CSV_FILE)
-        # 同じ日付のデータは上書きする
         df = df[df["日付"] != str(today)]
         df = pd.concat([df, new_data], ignore_index=True)
     else:
@@ -54,39 +51,38 @@ def save_data(weight, bmi):
     df.to_csv(CSV_FILE, index=False)
     return df
 
-# --- サイドバー（入力エリア） ---
+# --- サイドバー ---
 st.sidebar.header("📝 ユーザー情報入力")
-
 gender = st.sidebar.radio("性別", ["男性", "女性"])
 age = st.sidebar.number_input("年齢", min_value=18, max_value=100, value=22)
 height_cm = st.sidebar.number_input("身長 (cm)", min_value=50.0, value=170.0)
 weight_kg = st.sidebar.number_input("体重 (kg)", min_value=10.0, value=60.0)
-
 calc_button = st.sidebar.button("診断・記録する")
 
 # --- メイン画面 ---
 st.title("📊 健康管理ダッシュボード")
 
-# 過去データの読み込み
+# データの読み込み
 df_history = load_data()
 
-# ★ここが消えていたためエラーになっていました
+# ★ここが重要！タブを作る命令
 tab1, tab2 = st.tabs(["今回の診断", "📈 体重の推移グラフ"])
 
+# タブ1：診断画面
 with tab1:
     if calc_button:
-        # 1. 計算ロジック
+        # 計算
         height_m = height_cm / 100
         bmi = weight_kg / (height_m ** 2)
         ideal_weight = 22 * (height_m ** 2)
         diff_weight = weight_kg - ideal_weight
         min_target, max_target = get_target_bmi_range(age)
 
-        # 2. データの保存
-        df_history = save_data(weight_kg, bmi)
-        st.toast("データを記録しました！", icon="💾") 
+        # 保存
+        save_data(weight_kg, bmi)
+        st.toast("データを記録しました！", icon="💾")
 
-        # 3. 結果表示
+        # 表示
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("あなたのBMI", f"{bmi:.1f}")
@@ -97,25 +93,24 @@ with tab1:
 
         st.divider()
 
-        # 4. メーター表示
+        # メーター
         bar_value = max(0.0, min(1.0, (bmi - 10) / 30))
         st.subheader("現在のポジション")
         st.progress(bar_value)
         st.caption("10 (痩せ) ............ 18.5 (普通) ............ 25 (肥満) ............ 40")
 
-        # 5. 詳細な判定結果の表示
+        # 判定
         st.subheader("診断結果")
-        
         if bmi < min_target:
-            st.warning(f"【痩せすぎ】です。目標範囲（{min_target}以上）を下回っています。ご高齢の場合は筋肉量の減少に注意が必要です。")
+            st.warning(f"【痩せすぎ】です。目標範囲（{min_target}以上）を下回っています。")
         elif min_target <= bmi <= max_target:
             st.success(f"【適正範囲】です！ 年齢（{age}歳）に適した素晴らしい体型です。")
         else:
-            st.error(f"【肥満気味】です。目標範囲（{max_target}以下）を上回っています。生活習慣を見直してみましょう。")
-
+            st.error(f"【肥満気味】です。目標範囲（{max_target}以下）を上回っています。")
     else:
         st.info("サイドバーで数値を入力し「診断・記録する」ボタンを押してください。")
 
+# タブ2：グラフ画面
 with tab2:
     st.subheader("体重の変化記録")
     if not df_history.empty:
@@ -123,4 +118,5 @@ with tab2:
         with st.expander("詳細データを見る"):
             st.dataframe(df_history)
     else:
-        st.write("まだ記録データがありません。「診断・記録する」ボタンを押すとここにグラフが表示されます。")
+        st.write("まだ記録データがありません。")
+        
